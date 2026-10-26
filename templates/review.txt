@@ -1,0 +1,27 @@
+Adversarial review, task @@TASK@@ of the campaign "@@NAME@@". At most @@MINUTES@@ minutes.
+
+All paths are relative to the campaign directory (your working directory). Read QUESTION.md,
+ws/@@WS@@/research/claims.json, every file each claim lists, ws/@@WS@@/research/certs/, and
+ws/@@WS@@/check/check.json and CHECK.md. Form your verdicts from these first. Only then read
+ws/@@WS@@/research/RESULT.md and NOTES.md, and check that the conclusions there follow from claims that
+survived, with no unstated assumptions. Do not read ws/@@WS@@/archive/.
+
+Review every claim. Assume each one is wrong until you have failed to break it:
+- check every step of each proof, and whether every cited result really applies (are its hypotheses met?);
+- look for silently dropped hypotheses, missing cases and off-by-one errors in counts;
+- try to build counterexamples with your own code (in ws/@@WS@@/review/, python3 -I, exact methods);
+- check that a failed search is never presented as an impossibility proof;
+- check that each proposed status is justified, and assign the final status yourself:
+  "Reviewed proof; no error found" (a proof you could not break, whose finite dependencies passed the check),
+  "Independently reproduced computation" (a finite claim that passed the check), "Unverified conjecture", or
+  "Refuted claim" (with the refutation).
+
+Write ws/@@WS@@/review/REVIEW.md (per claim: the verdict, what you did, and the final status) and
+ws/@@WS@@/review/review.json in exactly this shape:
+  {"claims": {"<id>": "<verdict>"}, "final_status": {"<id>": "<status>"}}
+Every value in "claims" must be exactly one of the three verdict strings: "ERROR FOUND", "NO ERROR FOUND" or
+"CANNOT ASSESS". Status names belong only in "final_status". The audit reads "claims" mechanically and treats
+any other string as no verdict. If there are no claims, write {"claims": {}, "final_status": {}} and say so. Write only inside ws/@@WS@@/review/ (plus your own checkpoint files). As your very
+last action run:
+  python3 -I ../../tools/mark_complete.py ws/@@WS@@/review/review.complete ws/@@WS@@/review/REVIEW.md ws/@@WS@@/review/review.json
+Then reply DONE.

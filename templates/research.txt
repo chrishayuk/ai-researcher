@@ -1,0 +1,45 @@
+Research task @@TASK@@ of the campaign "@@NAME@@". At most @@MINUTES@@ minutes of work.
+
+All paths are relative to the campaign directory (your working directory). Read QUESTION.md first: it is the
+frozen research question, with its definitions, its success criteria, the methods allowed, and its limits.
+Background material listed in QUESTION.md may also be read.
+
+Your job is to make verifiable progress on the question. Possible results, any of which is a success:
+a proof; a finite computation with a certificate; a counterexample; a precise obstruction; or a well-founded
+"no progress, and here is why".
+
+RULES (each one exists because a real campaign failed without it):
+1. Predict before you compute. Before any computation expected to take more than 2 minutes, record in
+   ws/@@WS@@/state.json its predicted size and run time, and why its result could establish the claim. Report
+   afterwards how the actual run compared with the prediction.
+2. A failed search is not a proof. If a search finds nothing, write "no X found by method Y", never
+   "impossible" or "irreducible", unless you prove it.
+3. Do not enlarge an enumeration just because a smaller one worked.
+4. Every finite claim needs a certificate that a stranger could check, in a format you state exactly, plus a
+   completeness argument that does not depend on your own generator (for example, orbit sizes that sum to an
+   independently computed total).
+5. Every proof claim is written out in full. Cite published results with an exact reference and page, and
+   check that their hypotheses hold in your setting.
+6. Keep your reasoning, dead ends and code notes in ws/@@WS@@/research/NOTES.md and src/. Never put them in
+   RESULT.md or claims.json, and never list NOTES.md in a claim's "files". The blind checker reads the claims
+   and must not see your reasoning.
+7. Propose a status for each claim, but you do not decide it. The check and the review decide.
+8. Record each idea, claim, result or failure when it first appears:
+     python3 -I ../../tools/ledger.py add --actor agent:@@TASK@@ --kind idea|claim|result|failure \
+        --text "..." --evidence "ws/@@WS@@/research/..."
+9. Write only inside ws/@@WS@@/ (and the ledger). Run Python with python3 -I.
+
+DELIVERABLES in ws/@@WS@@/research/:
+- RESULT.md: what you established, what you did not, and what you would try next.
+- claims.json: a list of {"id", "statement", "definitions", "type": "proof" | "finite-certificate" |
+  "negative-search" | "conjecture", "proposed_status", "files", "certificate_format",
+  "why_it_proves_the_statement", "depends_on": [ids]}.
+  - "statement" + "definitions" must form a complete formal specification: a checker who reads only them must
+    be able to judge whether a valid certificate proves the statement.
+  - proposed_status is one of: "Reviewed proof", "Independently reproduced computation", "Unverified
+    conjecture", "Refuted claim".
+  - An empty list is a valid result.
+- certs/ (certificates and SHA256SUMS; create it even if empty), src/ (your code), NOTES.md.
+As your very last action, bind your outputs with exactly this command:
+  python3 -I ../../tools/mark_complete.py ws/@@WS@@/research/research.complete ws/@@WS@@/research/RESULT.md ws/@@WS@@/research/claims.json ws/@@WS@@/research/NOTES.md
+Do not change those files afterwards. Then reply DONE.

@@ -1,0 +1,29 @@
+Blind but informed check, task @@TASK@@ of the campaign "@@NAME@@". At most @@MINUTES@@ minutes.
+
+All paths are relative to the campaign directory (your working directory).
+You MAY read: QUESTION.md, ws/@@WS@@/research/claims.json, ws/@@WS@@/research/certs/, and the background
+material QUESTION.md lists.
+You MUST NOT read: ws/@@WS@@/research/src/, ws/@@WS@@/research/NOTES.md, ws/@@WS@@/research/RESULT.md,
+ws/@@WS@@/archive/, or the ledger. You must not be anchored by the author's code or reasoning. "Blind" does
+not mean "uninformed": you check both that each certificate is valid and that a valid certificate really
+establishes the formal statement.
+
+For every claim of type "finite-certificate":
+1. Write your own checker from scratch in ws/@@WS@@/check/, from the claim's "statement", "definitions" and
+   "certificate_format" (Python standard library, plus networkx or an exact solver if needed). Run it.
+2. Where the claim covers a list of cases, enumerate the cases yourself. Confirm that every case you generate
+   is covered, and report anything missing, extra or duplicated. Do not trust the author's counts.
+3. Mutation test: corrupt copies of each certificate in at least three different ways, confirm your checker
+   rejects every one, and save the output to ws/@@WS@@/check/mutation_output.txt.
+4. Judge "why_it_proves_the_statement". If a valid certificate would not establish the statement (a missing
+   case, the wrong class, an unstated assumption), the verdict is INSUFFICIENT even if the certificate checks.
+For every other claim type, the verdict is NOT FINITE ("not a finite claim; not checked here").
+If your check cannot finish within the time limit, the verdict is CANNOT CHECK, with what you did reach.
+
+Write ws/@@WS@@/check/CHECK.md (each claim: what you did, the verdict, and why) and ws/@@WS@@/check/check.json:
+{"claims": {"<id>": "PASS" | "FAIL" | "INSUFFICIENT" | "CANNOT CHECK" | "NOT FINITE"}}, using exactly
+those strings (the audit reads them mechanically). If there are no claims,
+write {"claims": {}} and say so. Write only inside ws/@@WS@@/check/ (plus your own checkpoint files). As your
+very last action run:
+  python3 -I ../../tools/mark_complete.py ws/@@WS@@/check/check.complete ws/@@WS@@/check/CHECK.md ws/@@WS@@/check/check.json
+Then reply DONE.
