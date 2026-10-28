@@ -5,7 +5,8 @@
                   [--research-model opus] [--check-model sonnet] [--review-model opus]
                   [--research-minutes 45] [--check-minutes 30] [--review-minutes 30]
 
-Writes campaigns/NAME/ (relative to the project root):
+Writes campaigns/NAME/ under --root (default: the current directory, i.e. your project):
+  tools/             a copy of the engine; the campaign runs on this copy, so plugin updates never change it
   QUESTION.md        a copy of the question; the campaign is bound to this exact text
   prompts/           research, check and review prompts rendered from templates/
   campaign.json      one workstream "main": research -> handoff -> blind check -> handoff -> adversarial review
@@ -16,14 +17,14 @@ Writes campaigns/NAME/ (relative to the project root):
 Every task's receipt binds the upstream files it consumed, so a later change to the question, a claim or a
 certificate makes the receipt INVALID and blocks the workstream. The budget is a hard cap enforced by the
 runner (the dollar cap through claude's --max-budget-usd, the time cap by pausing). Nothing is launched:
-read the files, then start with  python3 -I tools/runner.py --campaign campaigns/NAME start --detach
+read the files, then start with  math-research start NAME
 """
 import argparse, hashlib, json, os, shutil, sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 TOOLS = ["runner.py", "verify.py", "manifest_check.py", "pause_hook.py", "mark_complete.py", "ledger.py",
-         "stage.py"]
+         "stage.py", "audit.py"]
 
 
 def sha(p):
@@ -39,24 +40,30 @@ def main():
     for role, model, minutes in (("research", "opus", 45), ("check", "sonnet", 30), ("review", "opus", 30)):
         ap.add_argument(f"--{role}-model", default=model)
         ap.add_argument(f"--{role}-minutes", type=int, default=minutes)
+    ap.add_argument("--root", default=os.getcwd(), help="project directory that holds campaigns/")
     a = ap.parse_args()
 
+    ROOT = os.path.abspath(a.root)
     out = os.path.join(ROOT, "campaigns", a.name)
     if os.path.exists(out):
         sys.exit(f"{out} already exists; a frozen campaign is never overwritten. Choose another --name.")
     os.makedirs(os.path.join(out, "prompts"))
+    os.makedirs(os.path.join(out, "tools"))
+    for t in TOOLS:
+        shutil.copy(os.path.join(PLUGIN, "tools", t), os.path.join(out, "tools", t))
     shutil.copy(a.question, os.path.join(out, "QUESTION.md"))
     open(os.path.join(out, "ledger.jsonl"), "w").close()
 
     W = "main"
     roles = {"research": a.research_minutes, "check": a.check_minutes, "review": a.review_minutes}
     for role, minutes in roles.items():
-        text = open(os.path.join(ROOT, "templates", role + ".txt")).read()
+        text = open(os.path.join(PLUGIN, "templates", role + ".txt")).read()
         for k, v in {"@@NAME@@": a.name, "@@WS@@": W, "@@TASK@@": role, "@@MINUTES@@": str(minutes)}.items():
             text = text.replace(k, v)
         open(os.path.join(out, "prompts", role + ".txt"), "w").write(text)
 
-    man = os.path.join(ROOT, "tools", "manifest_check.py")
+    # tool paths are relative: every task runs with the campaign directory as its working directory
+    man = "tools/manifest_check.py"
     r, c, v = f"ws/{W}/research/", f"ws/{W}/check/", f"ws/{W}/review/"
 
     def agent(tid, model, outputs, binds):
@@ -68,7 +75,7 @@ def main():
     def handoff(after):
         dest = f"ws/{W}/archive/{after}"
         return {"id": f"handoff.{after}", "kind": "cmd", "outputs": [dest + "/MOVED.json"],
-                "cmd": [PY, "-I", os.path.join(ROOT, "tools", "stage.py"), "handoff", W, dest]}
+                "cmd": [PY, "-I", "tools/stage.py", "handoff", W, dest]}
 
     tasks = [
         agent("research", a.research_model,
@@ -89,9 +96,8 @@ def main():
                                   "cmd": ["shasum", "-a", "256", "-c", "-q", "frozen.sha256"]}]}
     json.dump(spec, open(os.path.join(out, "campaign.json"), "w"), indent=1)
 
-    frozen = ["QUESTION.md"] + [f"prompts/{x}.txt" for x in roles]
+    frozen = ["QUESTION.md"] + [f"prompts/{x}.txt" for x in roles] + [f"tools/{t}" for t in TOOLS]
     lines = [f"{sha(os.path.join(out, p))}  {p}" for p in frozen]
-    lines += [f"{sha(os.path.join(ROOT, 'tools', t))}  ../../tools/{t}" for t in TOOLS]
     open(os.path.join(out, "frozen.sha256"), "w").write("\n".join(lines) + "\n")
     open(os.path.join(out, "campaign.sha256"), "w").write(f"{sha(os.path.join(out, 'campaign.json'))}  campaign.json\n")
 
@@ -99,7 +105,7 @@ def main():
           f"blind check ({a.check_model}) -> adversarial review ({a.review_model}); hard caps ${a.budget:g}, "
           f"{a.hours:g} h")
     print(f"campaign.json sha256 {sha(os.path.join(out, 'campaign.json'))}")
-    print(f"start:  python3 -I tools/runner.py --campaign {os.path.relpath(out, ROOT)} start --detach")
+    print(f"start:  math-research start {a.name}")
 
 
 if __name__ == "__main__":

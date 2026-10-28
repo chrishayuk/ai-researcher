@@ -25,5 +25,5 @@ Write ws/@@WS@@/check/CHECK.md (each claim: what you did, the verdict, and why) 
 those strings (the audit reads them mechanically). If there are no claims,
 write {"claims": {}} and say so. Write only inside ws/@@WS@@/check/ (plus your own checkpoint files). As your
 very last action run:
-  python3 -I ../../tools/mark_complete.py ws/@@WS@@/check/check.complete ws/@@WS@@/check/CHECK.md ws/@@WS@@/check/check.json
+  python3 -I tools/mark_complete.py ws/@@WS@@/check/check.complete ws/@@WS@@/check/CHECK.md ws/@@WS@@/check/check.json
 Then reply DONE.

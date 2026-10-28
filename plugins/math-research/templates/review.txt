@@ -23,5 +23,5 @@ Every value in "claims" must be exactly one of the three verdict strings: "ERROR
 "CANNOT ASSESS". Status names belong only in "final_status". The audit reads "claims" mechanically and treats
 any other string as no verdict. If there are no claims, write {"claims": {}, "final_status": {}} and say so. Write only inside ws/@@WS@@/review/ (plus your own checkpoint files). As your very
 last action run:
-  python3 -I ../../tools/mark_complete.py ws/@@WS@@/review/review.complete ws/@@WS@@/review/REVIEW.md ws/@@WS@@/review/review.json
+  python3 -I tools/mark_complete.py ws/@@WS@@/review/review.complete ws/@@WS@@/review/REVIEW.md ws/@@WS@@/review/review.json
 Then reply DONE.

@@ -25,7 +25,7 @@ RULES (each one exists because a real campaign failed without it):
    and must not see your reasoning.
 7. Propose a status for each claim, but you do not decide it. The check and the review decide.
 8. Record each idea, claim, result or failure when it first appears:
-     python3 -I ../../tools/ledger.py add --actor agent:@@TASK@@ --kind idea|claim|result|failure \
+     python3 -I tools/ledger.py add --actor agent:@@TASK@@ --kind idea|claim|result|failure \
         --text "..." --evidence "ws/@@WS@@/research/..."
 9. Write only inside ws/@@WS@@/ (and the ledger). Run Python with python3 -I.
 
@@ -41,5 +41,5 @@ DELIVERABLES in ws/@@WS@@/research/:
   - An empty list is a valid result.
 - certs/ (certificates and SHA256SUMS; create it even if empty), src/ (your code), NOTES.md.
 As your very last action, bind your outputs with exactly this command:
-  python3 -I ../../tools/mark_complete.py ws/@@WS@@/research/research.complete ws/@@WS@@/research/RESULT.md ws/@@WS@@/research/claims.json ws/@@WS@@/research/NOTES.md
+  python3 -I tools/mark_complete.py ws/@@WS@@/research/research.complete ws/@@WS@@/research/RESULT.md ws/@@WS@@/research/claims.json ws/@@WS@@/research/NOTES.md
 Do not change those files afterwards. Then reply DONE.

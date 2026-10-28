@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""math-research: one command for research campaigns. Run it from your project directory.
+
+  math-research new --name NAME --question FILE [--budget USD] [--hours H] [...]   freeze a campaign
+  math-research start NAME [--detach]          run it (the skill always uses --detach)
+  math-research status NAME
+  math-research pause NAME all|<W>             resume NAME all|<W>
+  math-research audit NAME                     integrity, verification and status, kept apart
+  math-research ledger NAME add|show ...       the attribution ledger
+  math-research list
+  math-research path                           the plugin directory (for its examples/ and templates/)
+
+`new` uses this plugin's tools. Every other command uses the campaign's own frozen copy in
+campaigns/NAME/tools/, so a plugin update never changes a campaign that is already running.
+"""
+import os, sys
+
+PLUGIN = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+PY = sys.executable
+
+
+def run(argv, cwd=None):
+    if cwd:
+        os.chdir(cwd)
+    os.execv(PY, [PY, "-I", *argv])
+
+
+def main(args):
+    if not args or args[0] in ("-h", "--help", "help"):
+        sys.exit(__doc__)
+    cmd, rest = args[0], args[1:]
+    if cmd == "new":
+        run([os.path.join(PLUGIN, "tools", "new_campaign.py"), *rest])
+    if cmd == "path":
+        print(PLUGIN)
+        return
+    if cmd == "list":
+        d = os.path.join(os.getcwd(), "campaigns")
+        for n in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+            if os.path.exists(os.path.join(d, n, "campaign.json")):
+                print(n)
+        return
+    if not rest:
+        sys.exit(f"usage: math-research {cmd} NAME ...")
+    camp = os.path.join("campaigns", rest[0])
+    tools = os.path.join(camp, "tools")
+    if not os.path.exists(os.path.join(camp, "campaign.json")):
+        sys.exit(f"no campaign at {camp} (run math-research from the project directory that holds campaigns/)")
+    if not os.path.isdir(tools):
+        sys.exit(f"{camp} has no tools/ copy; it was made by an older version. Run it with the tools it was frozen with.")
+    if cmd in ("start", "status", "pause", "resume"):
+        run([os.path.join(tools, "runner.py"), "--campaign", camp, cmd, *rest[1:]])
+    if cmd == "audit":
+        run([os.path.join(tools, "audit.py"), camp])
+    if cmd == "ledger":
+        run([os.path.join("tools", "ledger.py"), *rest[1:]], cwd=camp)
+    sys.exit(f"unknown command {cmd!r}\n{__doc__}")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

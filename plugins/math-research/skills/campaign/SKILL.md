@@ -1,13 +1,18 @@
 ---
-name: math-research
+name: campaign
 description: Run an autonomous mathematical research campaign with a budget: scope a question, check what is known, freeze it, launch research, blind check and adversarial review as headless agents, then audit the evidence. Use when the user wants to investigate a mathematical question autonomously, or to run, monitor, pause, resume or audit a research campaign in this project.
 ---
 
 # Autonomous mathematical research
 
 You are the **operator** of a research campaign. Headless agents do the research, the blind check and the
-adversarial review. The deterministic tools in `tools/` handle budgets, pausing, receipts and the audit. Your
+adversarial review. The deterministic tools handle budgets, pausing, receipts and the audit. Your
 job is to set the campaign up honestly, keep the user informed, and report only what the evidence supports.
+
+Run every command from the user's project directory: campaigns live in `campaigns/<name>/` there, never inside
+this plugin. `math-research` is on the shell's PATH while the plugin is enabled; if it is not found, use
+`${CLAUDE_PLUGIN_ROOT}/bin/math-research`. Plugin files: templates in `${CLAUDE_PLUGIN_ROOT}/templates/`,
+examples in `${CLAUDE_PLUGIN_ROOT}/examples/`.
 
 The files are the authority, never this conversation. A campaign's state lives in `campaigns/<name>/`.
 
@@ -22,27 +27,27 @@ The files are the authority, never this conversation. A campaign's state lives i
 3. Propose 1–3 concrete, checkable targets. Prefer a restricted case with a clear finite part over a vague
    attack on the full problem. For each, say what a success would look like and what a cheap first experiment
    would show.
-4. Write the question with `templates/QUESTION.md`. Every term must be defined: the blind checker reads only
+4. Write the question with `${CLAUDE_PLUGIN_ROOT}/templates/QUESTION.md`. Every term must be defined: the blind checker reads only
    this file and the claims. Show it to the user and get their approval of the exact text.
 
 ## 2. Freeze and launch
 
 ```
-python3 -I tools/new_campaign.py --name <name> --question <path/to/QUESTION.md> --budget <usd> --hours <h>
-python3 -I tools/runner.py --campaign campaigns/<name> start --detach
+math-research new --name <name> --question <path/to/QUESTION.md> --budget <usd> --hours <h>
+math-research start <name> --detach
 ```
 
-- `new_campaign.py` freezes the question, prompts and tools by hash. Never edit a frozen file afterwards. If
+- `new` freezes the question, prompts and a copy of the tools (`campaigns/<name>/tools/`) by hash. Never edit a frozen file afterwards. If
   the question was wrong, create a new campaign with a new name.
 - The pipeline is: research (Opus) → blind check (Sonnet, its own code, never sees the author's reasoning) →
   adversarial review (Opus). The budget is a hard cap: the runner stops agents that reach it.
-- Tell the user the campaign.json hash that `new_campaign.py` prints, and record it in the ledger:
-  `cd campaigns/<name> && python3 -I ../../tools/ledger.py add --actor operator --kind decision --text "launched; campaign.json <hash>" --evidence campaign.json`
+- Tell the user the campaign.json hash that `new` prints, and record it in the ledger:
+  `math-research ledger <name> add --actor operator --kind decision --text "launched; campaign.json <hash>" --evidence campaign.json`
 
 ## 3. While it runs
 
-- Status: `python3 -I tools/runner.py --campaign campaigns/<name> status`
-- Pause (for example before closing a laptop): `... pause all`. Resume: `... resume all`. A crash or reboot is
+- Status: `math-research status <name>`
+- Pause (for example before closing a laptop): `math-research pause <name> all`. Resume: `math-research resume <name> all`. A crash or reboot is
   recovered by the same `resume all`.
 - To wait without polling in a loop, watch `campaigns/<name>/events.jsonl` for `"ev": "exit"` and
   `"runner_idle"` lines.
@@ -55,7 +60,7 @@ python3 -I tools/runner.py --campaign campaigns/<name> start --detach
 ## 4. Audit and report
 
 ```
-python3 -I tools/audit.py campaigns/<name>
+math-research audit <name>
 ```
 
 The audit keeps three things apart, and so must your report:
@@ -90,5 +95,5 @@ When you report:
 ## Going further
 
 A larger campaign splits into gated stages. A later stage starts only if the earlier check and review passed:
-`tools/stage.py gate` as a `cmd` task, with a `handoff` before each blind task. The Tuza case study in
-`examples/tuza-case-study/` shows a three-stage campaign built this way.
+`tools/stage.py gate` (in the campaign's tools copy) as a `cmd` task, with a `handoff` before each blind task. The Tuza case study in
+`${CLAUDE_PLUGIN_ROOT}/examples/tuza-case-study/` shows a three-stage campaign built this way.

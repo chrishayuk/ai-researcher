@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write a completion marker that binds the exact bytes of a task's final outputs.
 Usage (run from the campaign directory, as an agent's very last action):
-  python3 -I ../tools/mark_complete.py <marker path> <output>...
+  python3 -I tools/mark_complete.py <marker path> <output>...
 The marker is JSON: {"outputs": {"<path>": "<sha256>", ...}, "t": "<UTC time>"}. The runner accepts a task only if
 the marker lists every declared output and every listed hash still matches the file. The acceptance receipt
 then binds the same hashes. A stale marker (any output changed after it was written) means the task is not done.

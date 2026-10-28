@@ -1,0 +1,8 @@
+{
+  "name": "math-research",
+  "version": "0.1.0",
+  "description": "Autonomous mathematical research campaigns: scope and freeze a question, run research, blind check and adversarial review as budgeted headless agents, then audit the evidence",
+  "author": { "name": "Chris Hay" },
+  "license": "Apache-2.0",
+  "keywords": ["mathematics", "research", "agents", "verification"]
+}

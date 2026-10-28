@@ -1,0 +1,12 @@
+{
+  "name": "ai-researcher",
+  "description": "Plugins for autonomous AI research with Claude Code",
+  "owner": { "name": "Chris Hay" },
+  "plugins": [
+    {
+      "name": "math-research",
+      "source": "./plugins/math-research",
+      "description": "Autonomous mathematical research campaigns: scope and freeze a question, run research, blind check and adversarial review as budgeted headless agents, then audit the evidence"
+    }
+  ]
+}

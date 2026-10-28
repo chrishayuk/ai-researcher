@@ -2,9 +2,9 @@
 """Attribution ledger: claims and ideas are recorded when they first appear, not reconstructed later.
 
 Usage (run from the campaign directory; the ledger is <campaign>/ledger.jsonl):
-  python3 -I ../../tools/ledger.py add --actor <user|operator|agent:NAME> --kind <idea|claim|result|failure|decision>
+  python3 -I tools/ledger.py add --actor <user|operator|agent:NAME> --kind <idea|claim|result|failure|decision>
                                  --text "<one sentence>" --evidence "<transcript line / file>"
-  python3 -I ../../tools/ledger.py show
+  python3 -I tools/ledger.py show
 Entries are append-only. A correction is a new entry with --kind correction that names the entry number it corrects.
 """
 import argparse, datetime, json, os, sys
