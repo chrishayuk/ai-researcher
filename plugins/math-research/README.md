@@ -22,6 +22,15 @@ claude plugin marketplace add chrishayuk/ai-researcher     # or a local path to 
 claude plugin install math-research@ai-researcher
 ```
 
+Inside Claude Code, the `math-research` command is already on the PATH. To use it in your own terminal too,
+add this line to your shell profile (`~/.zshrc` or `~/.bashrc`):
+
+```bash
+export PATH="$PATH:$HOME/.claude/plugins/marketplaces/ai-researcher/plugins/math-research/bin"
+```
+
+If you added the marketplace from a local folder instead, use that folder's `plugins/math-research/bin`.
+
 ## Quick start: a small, known theorem (about 15 minutes, a few dollars)
 
 Open Claude Code in any project directory and ask:

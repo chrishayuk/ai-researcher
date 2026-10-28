@@ -27,7 +27,8 @@ def run(argv, cwd=None):
 
 def main(args):
     if not args or args[0] in ("-h", "--help", "help"):
-        sys.exit(__doc__)
+        print(__doc__.strip())
+        return
     cmd, rest = args[0], args[1:]
     if cmd == "new":
         run([os.path.join(PLUGIN, "tools", "new_campaign.py"), *rest])
