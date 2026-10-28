@@ -132,7 +132,7 @@ class Campaign:
             for t in ws["tasks"]:
                 tasks[t["id"]] = {"ws": w, "spec": t, "status": "pending", "attempts": 0, "pid": None,
                                   "boot": None, "session": None, "run": None, "done_inputs": None,
-                                  "failures": 0, "mode": None}
+                                  "failures": 0, "mode": None, "grant": 0.0}
         cost = {w: 0.0 for w in self.spec["workstreams"]}
         active = {w: 0.0 for w in self.spec["workstreams"]}
         blocked = {}
@@ -140,7 +140,8 @@ class Campaign:
             t = tasks.get(e.get("task"))
             if e["ev"] == "launch":
                 t.update(status="running", attempts=e["attempt"], pid=e["pid"], boot=e["boot"],
-                         session=e.get("session") or t["session"], run=e["run"], mode=e.get("mode"))
+                         session=e.get("session") or t["session"], run=e["run"], mode=e.get("mode"),
+                         grant=e.get("grant_usd") or 0.0)
             elif e["ev"] == "exit":
                 t.update(status=e["status"], pid=None)
                 if e["status"] in ("failed", "rejected"):
@@ -152,9 +153,13 @@ class Campaign:
                         t["failures"] += 1
                 if e["status"] == "done":
                     t["done_inputs"] = e.get("inputs")
-                cost[t["ws"]] += e.get("cost_usd") or 0.0
+                # an agent that died without reporting its cost is charged its whole grant: the budget is a hard
+                # cap, so spend that cannot be measured is assumed to have reached the limit it was given
+                spent = e.get("cost_usd")
+                cost[t["ws"]] += spent if spent is not None else (t["grant"] if t["spec"]["kind"] == "agent" else 0.0)
             elif e["ev"] == "interrupted":
                 t.update(status="interrupted", pid=None)
+                cost[t["ws"]] += t["grant"] if t["spec"]["kind"] == "agent" else 0.0
             elif e["ev"] == "active_time":
                 active[e["ws"]] = e["total_s"]
             elif e["ev"] == "blocked":
@@ -184,8 +189,11 @@ class Campaign:
     def input_hashes(self, spec):
         h = {}
         for rel in spec.get("inputs", []):
-            for d, _, fs in (os.walk(self.p(rel)) if os.path.isdir(self.p(rel)) else [(None, None, [rel])]):
+            for d, dirs, fs in (os.walk(self.p(rel)) if os.path.isdir(self.p(rel)) else [(None, [], [rel])]):
+                dirs[:] = [x for x in dirs if x != "__pycache__"]  # the same exclusions as verify.py
                 for f in fs:
+                    if d and f == ".DS_Store":
+                        continue
                     path = os.path.join(d, f) if d else self.p(f)
                     h[os.path.relpath(path, self.root)] = sha_file(path) if os.path.exists(path) else "MISSING"
         return h
@@ -258,14 +266,18 @@ class Campaign:
         else:
             cmd = spec["cmd"]
         write_atomic(self.p(run, "cmd.json"), json.dumps(cmd, indent=1))
-        env = dict(os.environ, CAMPAIGN_ROOT=self.root, CAMPAIGN_WS=w,
-                   CAMPAIGN_PAUSE_FILES=self.p("PAUSE") + os.pathsep + self.p("ws", w, "PAUSE"))
+        # auto memory is off for every agent: durable state lives in the campaign's files, and a memory shared by
+        # all sessions in this directory would carry the author's reasoning to the blind checker
+        env = dict(os.environ, CAMPAIGN_ROOT=self.root, CAMPAIGN_WS=w, CLAUDE_CODE_DISABLE_AUTO_MEMORY="1",
+                   CAMPAIGN_PAUSE_FILES=self.p("PAUSE") + os.pathsep + self.p("ws", w, "PAUSE"),
+                   CAMPAIGN_HIDDEN=os.pathsep.join(spec.get("hidden", [])))
         quoted = " ".join("'" + c.replace("'", "'\\''") + "'" for c in cmd)
         sh = f"{quoted} > {run}/out.json 2> {run}/err.txt; echo $? > {run}/exitcode.tmp; mv {run}/exitcode.tmp {run}/exitcode"
         proc = subprocess.Popen(["/bin/sh", "-c", sh], cwd=self.root, env=env, start_new_session=True,
                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.log("launch", ws=w, task=tid, attempt=attempt, pid=proc.pid, boot=BOOT, run=run, mode=mode,
-                 session=session if spec["kind"] == "agent" else None)
+                 session=session if spec["kind"] == "agent" else None,
+                 grant_usd=round(remaining, 2) if spec["kind"] == "agent" else None)
 
     def finish(self, tid, t):
         """Classify a task whose process has gone."""
@@ -343,14 +355,37 @@ class Campaign:
                  result=result[-300:], inputs=inputs)
 
     # -------------------------------------------------------------- main loop ----------
+    def acquire_lock(self, lock):
+        """Create the lock atomically (O_EXCL), so two runners started together cannot both run. A lock whose
+        runner is dead is removed and the creation retried once."""
+        for _ in range(2):
+            try:
+                fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                try:
+                    pid, boot = json.load(open(lock)).values()
+                except (ValueError, OSError):  # being written by another runner right now, unless it is old
+                    if time.time() - os.path.getmtime(lock) < 10:
+                        print("runner already starting")
+                        return False
+                    pid = boot = None
+                if alive(pid, boot):
+                    print(f"runner already running (pid {pid})")
+                    return False
+                os.remove(lock)
+                continue
+            with os.fdopen(fd, "w") as f:
+                f.write(json.dumps({"pid": os.getpid(), "boot": BOOT}))
+                f.flush()
+                os.fsync(f.fileno())
+            return True
+        print("could not acquire runner.lock")
+        return False
+
     def run(self):
         lock = self.p("runner.lock")
-        if os.path.exists(lock):
-            pid, boot = json.load(open(lock)).values()
-            if alive(pid, boot) and pid != os.getpid():
-                print(f"runner already running (pid {pid})")
-                return 1
-        write_atomic(lock, json.dumps({"pid": os.getpid(), "boot": BOOT}))
+        if not self.acquire_lock(lock):
+            return 1
         problems, ws_problems = self.validate()
         if problems:
             self.log("runner_refused", problems=problems)
@@ -362,6 +397,14 @@ class Campaign:
         self.block_invalid(ws_problems, blocked)
         adopted = [tid for tid, t in tasks.items() if t["status"] == "running" and alive(t["pid"], t["boot"])]
         if adopted:
+            # these tasks kept running while no runner counted their time; charge the whole gap (wall clock, so it
+            # may include sleep: an overcount is the safe direction for a cap)
+            last = max(datetime.datetime.fromisoformat(e["t"]).timestamp() for e in self.events()
+                       if e["ev"] != "runner_start")
+            gap = max(0.0, time.time() - last)
+            for w in {tasks[x]["ws"] for x in adopted}:
+                active[w] += gap
+                self.log("active_time", ws=w, total_s=round(active[w], 1), reason=f"{gap:.0f}s without a runner")
             self.log("adopted", tasks=adopted)
         checkpoints = {}
         last_tick, mono = time.time(), time.monotonic()
@@ -520,6 +563,9 @@ def cmd_status(c):
         pid, boot = json.load(open(lock)).values()
         runner = f"running (pid {pid})" if alive(pid, boot) else "not running (stale lock)"
     print(f"campaign {c.spec.get('name')}  runner {runner}  {'ALL PAUSED' if os.path.exists(c.p('PAUSE')) else ''}")
+    if not runner.startswith("running") and any(t["status"] == "running" and alive(t["pid"], t["boot"])
+                                                 for t in tasks.values()):
+        print("  WARNING: agents are running with no runner, so the time cap is not enforced. Run start or resume.")
     for w, ws in c.spec["workstreams"].items():
         flag = "BLOCKED: " + blocked[w] if w in blocked else "paused" if c.paused(w) else "active"
         print(f"  {w}: {flag}; ${cost[w]:.3f} of ${ws['budget_usd']}; {active[w]:.0f}s of {ws['wall_s']}s")

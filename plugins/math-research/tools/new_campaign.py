@@ -82,8 +82,11 @@ def main():
               [r + "RESULT.md", r + "claims.json", r + "NOTES.md", r + "research.complete"],
               ["QUESTION.md", r + "certs"]),
         handoff("research"),
-        agent("check", a.check_model, [c + "CHECK.md", c + "check.json", c + "check.complete"],
-              ["QUESTION.md", r + "claims.json", r + "certs", r + "research.complete"]),
+        dict(agent("check", a.check_model, [c + "CHECK.md", c + "check.json", c + "check.complete"],
+                   ["QUESTION.md", r + "claims.json", r + "certs", r + "research.complete"]),
+             # enforced by the hook: the blind checker cannot read the author's reasoning or the run records
+             hidden=[r + "src", r + "NOTES.md", r + "RESULT.md", f"ws/{W}/archive", "runs", "events.jsonl",
+                     "ledger.jsonl", "runner.log"]),
         handoff("check"),
         agent("review", a.review_model, [v + "REVIEW.md", v + "review.json", v + "review.complete"],
               ["QUESTION.md", r + "claims.json", r + "certs", r + "RESULT.md", r + "NOTES.md",

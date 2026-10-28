@@ -34,7 +34,9 @@ def digest(paths):
     for p in paths:
         fs = files_of(p)
         if not fs:
-            h[p] = "MISSING"
+            # an empty directory is a real, bound input (a proof-only result has an empty certs/); only a path
+            # that does not exist is missing
+            h[p] = "EMPTY DIRECTORY" if os.path.isdir(p) else "MISSING"
         for f in fs:
             with open(f, "rb") as fh:
                 h[f] = hashlib.sha256(fh.read()).hexdigest()

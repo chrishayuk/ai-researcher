@@ -84,6 +84,7 @@ already frozen or running, and a changed tool file blocks the campaign at its ne
 | `examples/ramsey-r33/` | The small example |
 | `examples/tuza-case-study/` | What happened when this method was applied to Tuza's conjecture (Erdős Problem #167) |
 | `examples/tuza-case-study/verify/` | Re-run the real blind checker on the real degree-7 Tuza certificates (about 6 s) |
+| `tests/test_safety.py` | Tests of the guarantees above against a fake `claude` (no agents, no spend; about 2 minutes) |
 
 ## Three distinctions to keep
 
@@ -93,13 +94,28 @@ already frozen or running, and a changed tool file blocks the campaign at its ne
 - **An internally reviewed proof is a proof candidate.** It is not an established theorem, and not
   necessarily a new one. For more, formalise it (for example in Lean) or ask an expert.
 
+## What is enforced, and what isn't
+
+- **The budget is a hard cap.** Each agent is launched with the money left (`--max-budget-usd`). An agent that
+  crashes or is killed before reporting its cost is charged everything it was allowed, so a crash can never
+  buy a second full budget.
+- **Pause is enforced by a hook**, not by the agent's good behaviour: while paused, an agent can only save its
+  checkpoint files.
+- **The blind checker can't read the author's working files directly.** A hook refuses reads of `src/`,
+  `NOTES.md`, `RESULT.md`, the run records and ledgers, and session transcripts, and Claude Code's auto memory
+  is off for every agent. This stops direct reads. It is not a sandbox: an agent set on getting round it could.
+- **The audit counts only accepted evidence.** A verdict file counts only while an accepted receipt binds its
+  bytes. Anything that reads as a failure refutes a claim; only the exact verdict strings can lift one.
+
 ## Known limits
 
 - **No isolation.** Agents run with the access of the environment that launched them. A separate working
   directory and prompt rules do not stop an agent reading other files on the machine, so a run is not a clean
   held-out benchmark.
 - **One time budget per workstream.** `--hours` caps the workstream's total active time across research,
-  check and review. The per-role minutes are guidance in the prompts, not enforced limits.
+  check and review. The per-role minutes are guidance in the prompts, not enforced limits. The cap is counted
+  by the runner: if it stops while an agent is still working, `status` warns, and the whole gap is charged when
+  the runner comes back.
 
 ## Licence
 

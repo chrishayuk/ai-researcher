@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""A stand-in for `claude -p` used by tests/test_safety.py: writes the task's outputs and reports a cost.
+FAKE_* environment variables choose the claims, verdicts, timings and failures."""
+import sys, os, json, time, re, subprocess
+a = sys.argv[1:]
+rules = a[a.index("--append-system-prompt")+1]
+task = re.search(r"You are task (\S+)", rules).group(1)
+budget = a[a.index("--max-budget-usd")+1]
+open(os.environ["FAKE_LOG"], "a").write(json.dumps({"task": task, "pid": os.getpid(), "budget": budget, "resume": "--resume" in a, "t": time.time()})+"\n")
+time.sleep(float(os.environ.get("FAKE_SLEEP_"+task, os.environ.get("FAKE_SLEEP", "1"))))
+W="ws/main/"
+def w(p, s):
+    os.makedirs(os.path.dirname(p), exist_ok=True); open(p,"w").write(s)
+if task == "research":
+    w(W+"research/RESULT.md","r"); w(W+"research/NOTES.md","n"); os.makedirs(W+"research/certs", exist_ok=True)
+    if not os.environ.get("FAKE_EMPTY_CERTS"): w(W+"research/certs/SHA256SUMS", "")
+    w(W+"research/claims.json", os.environ.get("FAKE_CLAIMS", json.dumps([{"id":"A","type":"finite-certificate"},{"id":"B","type":"proof","depends_on":["A"]}])))
+    subprocess.run([sys.executable,"-I","tools/mark_complete.py",W+"research/research.complete",W+"research/RESULT.md",W+"research/claims.json",W+"research/NOTES.md"], capture_output=True)
+elif task == "check":
+    w(W+"check/CHECK.md","c"); w(W+"check/check.json", os.environ.get("FAKE_CHECK", json.dumps({"claims":{"A":"PASS","B":"NOT FINITE"}})))
+    subprocess.run([sys.executable,"-I","tools/mark_complete.py",W+"check/check.complete",W+"check/CHECK.md",W+"check/check.json"], capture_output=True)
+elif task == "review":
+    w(W+"review/review.json", os.environ.get("FAKE_REVIEW", json.dumps({"claims":{"A":"NO ERROR FOUND","B":"NO ERROR FOUND"}})))
+    if os.environ.get("FAKE_REVIEW_FAIL"):
+        print(json.dumps({"type":"result","result":"budget","total_cost_usd":1.0,"is_error":True})); sys.exit(1)
+    w(W+"review/REVIEW.md","v")
+    subprocess.run([sys.executable,"-I","tools/mark_complete.py",W+"review/review.complete",W+"review/REVIEW.md",W+"review/review.json"], capture_output=True)
+print(json.dumps({"type":"result","result":"DONE","total_cost_usd":float(os.environ.get("FAKE_COST","1.0")),"is_error":False}))

@@ -4,7 +4,9 @@ All paths are relative to the campaign directory (your working directory).
 You MAY read: QUESTION.md, ws/@@WS@@/research/claims.json, ws/@@WS@@/research/certs/, and the background
 material QUESTION.md lists.
 You MUST NOT read: ws/@@WS@@/research/src/, ws/@@WS@@/research/NOTES.md, ws/@@WS@@/research/RESULT.md,
-ws/@@WS@@/archive/, or the ledger. You must not be anchored by the author's code or reasoning. "Blind" does
+ws/@@WS@@/archive/, runs/, events.jsonl, ledger.jsonl, runner.log, or any Claude Code session transcript. A hook
+refuses direct reads of these, and searches (Glob, Grep) that would reach them: give every search a path inside
+the files you may read. You must not be anchored by the author's code or reasoning. "Blind" does
 not mean "uninformed": you check both that each certificate is valid and that a valid certificate really
 establishes the formal statement.
 

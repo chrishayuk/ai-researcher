@@ -7,10 +7,11 @@
       removes them instead of relying on the prompt. Idempotent: rerunning after an interruption is safe.
       Writes <archive dir>/MOVED.json.
 
-  stage.py gate <out.json> --allow V[,V...] [--require-any V] <verdict.json>...
+  stage.py gate <out.json> --claims <claims.json> --allow V[,V...] [--require-any V] <verdict.json>...
       Each verdict file is {"claims": {id: verdict}} and must have a matching completion marker (<dir>/*.complete
       written by mark_complete.py, binding its hash). The gate passes only if every file is non-empty, bound,
-      and every verdict is in --allow (and, with --require-any, at least one verdict equals it). Exit 1 otherwise,
+      gives a verdict for every claim in --claims, and every verdict is in --allow (and, with --require-any, at
+      least one verdict equals it). Exit 1 otherwise,
       which fails the task. The gate is deterministic, so once its retries reach max_failures the runner blocks
       the workstream. Writes <out.json>.
 """
@@ -43,8 +44,13 @@ def handoff(ws, archive):
     print(f"handoff {ws}: moved {moved or 'nothing (already moved)'} to {archive}")
 
 
-def gate(out, allow, require_any, files):
+def gate(out, claims_path, allow, require_any, files):
     problems, verdicts = [], {}
+    try:
+        ids = [c["id"] for c in json.load(open(claims_path))]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        ids = []
+        problems.append(f"{claims_path}: unreadable ({e})")
     for p in files:
         try:
             claims = json.load(open(p))["claims"]
@@ -57,6 +63,9 @@ def gate(out, allow, require_any, files):
             problems.append(f"{p}: no completion marker binds its current hash")
         if not claims:
             problems.append(f"{p}: no verdicts")
+        unjudged = [i for i in ids if i not in claims]
+        if unjudged:
+            problems.append(f"{p}: no verdict for claims {unjudged}")
         for cid, v in claims.items():
             verdicts[f"{p}:{cid}"] = v
             if v not in allow:
@@ -76,6 +85,7 @@ if __name__ == "__main__":
     h.add_argument("archive")
     g = sub.add_parser("gate")
     g.add_argument("out")
+    g.add_argument("--claims", required=True)
     g.add_argument("--allow", required=True)
     g.add_argument("--require-any")
     g.add_argument("files", nargs="+")
@@ -83,4 +93,4 @@ if __name__ == "__main__":
     if a.cmd == "handoff":
         handoff(a.ws, a.archive)
     else:
-        sys.exit(gate(a.out, a.allow.split(","), a.require_any, a.files))
+        sys.exit(gate(a.out, a.claims, a.allow.split(","), a.require_any, a.files))

@@ -90,10 +90,11 @@ When you report:
 3. Don't enlarge an enumeration just because a smaller one worked.
 4. Finite claims need a checkable certificate and a completeness argument that is independent of the generator.
 5. Proofs are written in full. Cited results must have their hypotheses checked.
-6. The author's reasoning stays out of the files the checker reads.
+6. The author's reasoning stays out of the files the checker reads. A hook refuses the checker's direct reads of
+   the author's code, notes and run records; it is not a sandbox, so don't describe the check as isolated.
 
 ## Going further
 
 A larger campaign splits into gated stages. A later stage starts only if the earlier check and review passed:
-`tools/stage.py gate` (in the campaign's tools copy) as a `cmd` task, with a `handoff` before each blind task. The Tuza case study in
+`tools/stage.py gate --claims <claims.json>` (in the campaign's tools copy) as a `cmd` task, with a `handoff` before each blind task. The Tuza case study in
 `${CLAUDE_PLUGIN_ROOT}/examples/tuza-case-study/` shows a three-stage campaign built this way.
