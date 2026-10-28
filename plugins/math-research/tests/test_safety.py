@@ -140,6 +140,11 @@ allowed = [("Read", {"file_path": "ws/main/research/claims.json"}), ("Read", {"f
            ("Glob", {"pattern": "*", "path": "ws/main/research/certs"}), ("Bash", {"command": "python3 ws/main/check/chk.py"}),
            ("Bash", {"command": "ls ws/main/research/certs"}),
            ("Bash", {"command": "python3 -I tools/mark_complete.py ws/main/check/check.complete ws/main/check/CHECK.md ws/main/check/check.json"})]
+allowed.append(("Bash", {"command": "cd ws/main/check\ncat > CHECK.md <<'EOF'\nI did not read src/, NOTES.md or RESULT.md.\nEOF"}))
+refused2 = [("Bash", {"command": "python3 - <<'EOF'\nprint(open('ws/main/research/NOTES.md').read())\nEOF"}),
+            ("Bash", {"command": "cat > x.txt <<'EOF'\nhi\nEOF\ncat ws/main/research/NOTES.md"})]
+for tool, inp in refused2:
+    check(f"7 blind: refused {tool} {inp}", hook({"tool_name": tool, "tool_input": inp}, he) == 2)
 for tool, inp in allowed:
     check(f"7 blind: allowed {tool} {inp}", hook({"tool_name": tool, "tool_input": inp}, he) == 0)
 env_seen = [x for x in events(d) if x["ev"] == "launch"]

@@ -14,7 +14,8 @@ Fixes from a review of the whole engine. Each is covered by `tests/test_safety.p
   paused, and `mv` arguments are checked.
 - **Blind check:** the hook refuses the checker's direct reads of the author's `src/`, `NOTES.md`, `RESULT.md`,
   the archive, run records, ledgers and session transcripts, and searches that would reach them. Auto memory is
-  off for every agent.
+  off for every agent. The text of a `cat > file <<EOF` heredoc is not scanned (a checker writing "I did not
+  read NOTES.md" into CHECK.md was refused in the acceptance run); heredocs fed to other commands are.
 - **Gate:** `stage.py gate` takes `--claims` and fails when any claim has no verdict.
 - **Runner:** `.DS_Store` and `__pycache__` no longer count as input changes; the runner lock is atomic; time
   that passes while agents run without a runner is charged when it comes back, and `status` warns meanwhile.

@@ -70,12 +70,16 @@ if hidden:
         base = real(path or ".")
         blocked = any(inside(base, t) or inside(t, base) for t in tops)  # the search would reach a hidden path
     elif cmd:
-        text = cmd.replace("\\", "")
+        # the body of a `cat > file <<EOF` heredoc is text being written, not a path being read (a checker's
+        # CHECK.md saying "I did not read NOTES.md"); heredocs fed to any other command are still scanned
+        text = re.sub(r"(cat\s*(?:>>?\s*\S+\s*)?<<-?\s*['\"]?(\w+)['\"]?(?:\s*>>?\s*\S+)?[^\n]*\n).*?\n\2(?=\n|$)",
+                      r"\1", cmd, flags=re.S).replace("\\", "")
         blocked = ".claude/projects" in text or any(
             re.search(r"(?<![\w.-])" + re.escape(n) + r"(?![\w-])", text) for h in hidden for n in names(h))
     if blocked:
         refuse("This is a blind task. The author's working files are hidden from it: " + ", ".join(hidden) +
-               ". Read only what your prompt lists, and give Glob and Grep a path inside the files you may read.")
+               ". Read only what your prompt lists, and give Glob and Grep a path inside the files you may read. A shell "
+               "command that names a hidden file is refused even in text it writes: write files with the Write tool.")
 
 if not any(os.path.exists(p) for p in pause_files):
     sys.exit(0)
